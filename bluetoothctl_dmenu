@@ -7,7 +7,7 @@ is_bluetoothctl_installed_correctly() {
 	if [[ $($backend -v) == bluetoothctl* &&
 	$($backend power on) == "Changing power on succeeded" &&
 	$($backend list) == Controller* ]]; then
-		echo 'Bluetoothctl is installed and configured correctly'
+		echo $backend 'is installed and configured correctly'
 	fi
 }
 
