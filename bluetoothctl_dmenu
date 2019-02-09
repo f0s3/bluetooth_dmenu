@@ -13,11 +13,12 @@ is_bluetoothctl_installed_correctly() {
 
 get_already_paired_devices() {
 	IFS=
-	echo $(beautify_device_list $($backend paired-devices));
+	echo $($backend paired-devices);
 }
 
-beautify_device_list() {
-	echo "${1#* }";
+connect_device() {
+	$backend connect $2;
 }
 
-echo $(get_already_paired_devices | dmenu);
+connect_device $(get_already_paired_devices | dmenu);
+
