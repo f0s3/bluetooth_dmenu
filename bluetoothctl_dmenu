@@ -1,5 +1,5 @@
 #!/bin/bash
-
+dmenu_list_mode="-l 10"
 backend="bluetoothctl"
 connected_device=""
 scan_result=[]
@@ -21,14 +21,14 @@ get_already_paired_devices() {
 print_connected_devices() {
 	while read -r _ mac name; do
 		if [[ $($backend info $mac | grep "Connected: yes") ]]; then
-			printf "$name\n"
+			printf "$name | $mac\n"
 		fi
 	done < <(get_already_paired_devices)
 }
 
 print_paired_devices() {
 	while read -r _ mac name; do
-			printf "$name\n"
+			printf "$name | $mac\n"
 	done < <(get_already_paired_devices)
 }
 
@@ -49,19 +49,53 @@ scan_for_devices() {
 	echo 'Scan for devices';
 }
 
+create_options() {
+	local device_info
+
+	if [[ $($backend info $mac | grep "$1") ]]; then
+		submenu_options+="$2 "
+	else
+		submenu_options+="$3 "
+	fi
+}
+
+open_device_submenu() {
+	local submenu_options
+	local name
+	local mac
+	local option
+	submenu_options=""
+	name=$(echo "$1" | cut -d "|" -f 1)
+	mac=$(echo "$1" | cut -d "|" -f 2)
+
+	create_options "Connected: yes" "disconnect" "connect" 
+	create_options "Trusted: yes" "untrust" "trust"
+	create_options "Blocked: yes" "unblock" "block"
+	create_options "Paired: yes" "remove" "pair"
+
+	read -r connect trust block pair < <(echo "$options")
+	option=$(printf "%s\n" $connect $trust $block $pair | dmenu -p "$name")
+	[[ $option ]] || exit 1
+}
+
 get_main_menu() {
 	echo -e "connected\npaired\nscan"
 }
 
 open_main_menu() {
 	local submenu
+	local device
 	submenu=$(get_main_menu | dmenu -p "btmenu";)
 	[[ $submenu ]] || exit 1
 
 	if [[ $submenu == "connected" ]]; then
-		print_connected_devices | dmenu -p "connected"
+		device=$(print_connected_devices | dmenu -p "connected" $dmenu_list_mode)
+		[[ $device ]] || exit 1
+		open_device_submenu "$device"
 	elif [[ $submenu == "paired" ]]; then
-		print_paired_devices | dmenu -p "paired"
+		device=$(print_paired_devices | dmenu -p "paired" $dmenu_list_mode)
+		[[ $device ]] || exit 1
+		open_device_submenu "$device"
 	fi
 }
 
