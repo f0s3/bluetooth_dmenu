@@ -18,6 +18,20 @@ get_already_paired_devices() {
 	echo $($backend paired-devices);
 }
 
+print_connected_devices() {
+	while read -r _ mac name; do
+		if [[ $($backend info $mac | grep "Connected: yes") ]]; then
+			printf "$name\n"
+		fi
+	done < <(get_already_paired_devices)
+}
+
+print_paired_devices() {
+	while read -r _ mac name; do
+			printf "$name\n"
+	done < <(get_already_paired_devices)
+}
+
 connect_device() {
 	$backend connect $2 && (
 	echo $2 '(connected)';
