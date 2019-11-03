@@ -2,6 +2,7 @@
 
 backend="bluetoothctl"
 connected_device=""
+scan_result=[]
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -35,10 +36,21 @@ scan_for_devices() {
 }
 
 get_main_menu() {
-	scan_for_devices;
-	get_already_paired_devices;
+	echo -e "connected\npaired\nscan"
 }
 
-#connect_device $(get_already_paired_devices | dmenu);
-get_main_menu | dmenu;
+open_main_menu() {
+	local submenu
+	submenu=$(get_main_menu | dmenu -p "btmenu";)
+	[[ $submenu ]] || exit 1
 
+	if [[ $submenu == "connected" ]]; then
+		print_connected_devices | dmenu -p "connected"
+	elif [[ $submenu == "paired" ]]; then
+		print_paired_devices | dmenu -p "paired"
+	fi
+}
+
+open_main_menu
+
+#connect_device $(get_already_paired_devices | dmenu);
