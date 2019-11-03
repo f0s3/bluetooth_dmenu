@@ -1,6 +1,7 @@
 #!/bin/bash
 
 backend="bluetoothctl"
+connected_device=""
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -17,8 +18,27 @@ get_already_paired_devices() {
 }
 
 connect_device() {
-	$backend connect $2;
+	$backend connect $2 && (
+	echo $2 '(connected)';
+	$connected_device="hello"
+	);
+	echo $connected_device;
 }
 
-connect_device $(get_already_paired_devices | dmenu);
+
+disconnect_all_devices() {
+	$($backend disconnect);
+}
+
+scan_for_devices() {
+	echo 'Scan for devices';
+}
+
+get_main_menu() {
+	scan_for_devices;
+	get_already_paired_devices;
+}
+
+#connect_device $(get_already_paired_devices | dmenu);
+get_main_menu | dmenu;
 
