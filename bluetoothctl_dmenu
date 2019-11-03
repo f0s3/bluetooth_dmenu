@@ -26,6 +26,11 @@ print_connected_devices() {
 	done < <(get_already_paired_devices)
 }
 
+# $1-text; $2-var name
+dmenu_notify() {
+	: | dmenu -p "$1"
+}
+
 print_paired_devices() {
 	while read -r _ mac name; do
 			printf "$name | $mac\n"
@@ -40,6 +45,17 @@ connect_device() {
 	echo $connected_device;
 }
 
+# $1-command; $2-mac; $3-name
+btctl_command() {
+	local status
+	status="$($backend $1 $2)"
+	printf "$status\n"
+	if [[ $(echo "$status" | grep -i "successful\|succeeded\|removed") ]]; then
+		dmenu_notify "$3: Successful operation '$1' (press enter)"
+	elif [[ $(echo "$status" | grep -i "failed") ]]; then
+		dmenu_notify "$3: Failed operation '$1' (press enter)"
+	fi
+}
 
 disconnect_all_devices() {
 	$($backend disconnect);
@@ -73,9 +89,11 @@ open_device_submenu() {
 	create_options "Blocked: yes" "unblock" "block"
 	create_options "Paired: yes" "remove" "pair"
 
-	read -r connect trust block pair < <(echo "$options")
+	read -r connect trust block pair < <(echo "$submenu_options")
 	option=$(printf "%s\n" $connect $trust $block $pair | dmenu -p "$name")
 	[[ $option ]] || exit 1
+
+	btctl_command $option $mac "$name"
 }
 
 get_main_menu() {
@@ -99,6 +117,7 @@ open_main_menu() {
 	fi
 }
 
+is_bluetoothctl_installed_correctly
 open_main_menu
 
 #connect_device $(get_already_paired_devices | dmenu);
