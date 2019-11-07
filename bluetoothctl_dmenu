@@ -2,7 +2,7 @@
 dmenu_list_mode="-l 10"
 backend="bluetoothctl"
 connected_device=""
-scan_result=[]
+unpaired_devices=""
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -24,6 +24,15 @@ print_connected_devices() {
 			printf "$name | $mac\n"
 		fi
 	done < <(get_already_paired_devices)
+}
+
+get_unpaired_devices() {
+	unpaired_devices=""
+	while read -r _ mac name; do
+	 	if [[ $($backend info $mac | grep "Paired: no") ]]; then
+	 		unpaired_devices+="$name | $mac\n"
+	 	fi
+	done < <($backend devices) 
 }
 
 # $1-text; $2-var name
@@ -59,10 +68,6 @@ btctl_command() {
 
 disconnect_all_devices() {
 	$($backend disconnect);
-}
-
-scan_for_devices() {
-	echo 'Scan for devices';
 }
 
 create_options() {
@@ -114,6 +119,24 @@ open_main_menu() {
 		device=$(print_paired_devices | dmenu -p "paired" $dmenu_list_mode)
 		[[ $device ]] || exit 1
 		open_device_submenu "$device"
+	elif [[ $submenu == "scan" ]]; then
+		$backend scan on > /dev/null &
+
+		while [[ "1" == "1" ]]; do
+			get_unpaired_devices
+			device=$(printf "update\n$unpaired_devices" | dmenu -p "scan" $dmenu_list_mode)
+
+			if [[ -z $device ]]; then
+				pkill -P $$
+				break
+			elif [[ $device == "update" ]]; then
+				continue
+			else 
+				open_device_submenu "$device"
+				pkill -P $$
+				break
+			fi 
+		done
 	fi
 }
 
