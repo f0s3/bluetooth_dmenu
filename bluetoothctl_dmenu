@@ -21,7 +21,7 @@ get_already_paired_devices() {
 print_connected_devices() {
 	while read -r _ mac name; do
 		if [[ $($backend info $mac | grep "Connected: yes") ]]; then
-			printf "$name | $mac\n"
+			printf '%-40s%s\n' "$name" "$mac"
 		fi
 	done < <(get_already_paired_devices)
 }
@@ -42,7 +42,7 @@ dmenu_notify() {
 
 print_paired_devices() {
 	while read -r _ mac name; do
-			printf "$name | $mac\n"
+		printf '%-40s%s\n' "$name" "$mac"
 	done < <(get_already_paired_devices)
 }
 
@@ -142,5 +142,4 @@ open_main_menu() {
 
 is_bluetoothctl_installed_correctly
 open_main_menu
-
 
