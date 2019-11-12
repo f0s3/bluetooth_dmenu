@@ -1,4 +1,25 @@
 #!/bin/bash
+
+# bluetoothctl_dmenu - dmenu-driven application that simplifies
+# the bluetooth connection through the bluetoothctl.
+
+# This application uses (or at least leads to) the MVC pattern.
+
+# Flow:
+
+# When a person clicks on a View which goes to the Model that tells
+# a Controller to get the information for the View that requested it,
+# a Controller takes the responsibility of getting what was asked and
+# pulling it back to the requesting Model that transforms raw data from 
+# Model to only what was asked by View.
+# This way View only shows things to user, Model mediates the data and
+# manages it in the way, appropriate for whom it was sent.
+# Controller does the heavy lifting of communicating with the backend
+# and provides an API to whom it is needed.
+# In some cases, if the data returned by Controller is fine for View
+# and Controller is ok with the data, provided by View, the Model could
+# be emitted.
+
 dmenu_list_mode="-l 10"
 backend="bluetoothctl"
 connected_device=""
@@ -6,6 +27,30 @@ unpaired_devices=""
 
 previous_menu="main"
 current_menu="main"
+
+#########################################################################
+#							CONTROLLERS									#
+#########################################################################
+
+
+# TODO: Refactor the code and split it into MVC
+
+
+#########################################################################
+#								MODELS									#
+#########################################################################
+
+
+# TODO: Refactor the code and split it into MVC
+
+
+#########################################################################
+#								VIEWS									#
+#########################################################################
+
+
+# TODO: Refactor the code and split it into MVC
+
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -57,15 +102,18 @@ connect_device() {
 	echo $connected_device;
 }
 
-# $1-command; $2-mac; $3-name
 btctl_command() {
+	local command=$1
+	local mac=$2
+	local name=$3
+
 	local status
-	status="$($backend $1 $2)"
+	status="$($backend $command $mac)"
 	printf "$status\n"
 	if [[ $(echo "$status" | grep -i "successful\|succeeded\|removed") ]]; then
-		dmenu_notify "$3: Successful operation '$1' (press enter)"
+		dmenu_notify "$name: Successful operation '$command' (press enter)"
 	elif [[ $(echo "$status" | grep -i "failed") ]]; then
-		dmenu_notify "$3: Failed operation '$1' (press enter)"
+		dmenu_notify "$name: Failed operation '$command' (press enter)"
 	fi
 }
 
