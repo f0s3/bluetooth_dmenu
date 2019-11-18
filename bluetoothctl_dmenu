@@ -1,7 +1,11 @@
 #!/bin/bash
-
+dmenu_list_mode="-l 10"
 backend="bluetoothctl"
 connected_device=""
+unpaired_devices=""
+
+previous_menu="main"
+current_menu="main"
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -17,6 +21,34 @@ get_already_paired_devices() {
 	echo $($backend paired-devices);
 }
 
+print_connected_devices() {
+	while read -r _ mac name; do
+		if [[ $($backend info $mac | grep "Connected: yes") ]]; then
+			printf '%-40s%s\n' "$name" "$mac"
+		fi
+	done < <(get_already_paired_devices)
+}
+
+get_unpaired_devices() {
+	unpaired_devices=""
+	while read -r _ mac name; do
+	 	if [[ $($backend info $mac | grep "Paired: no") ]]; then
+	 		unpaired_devices+="$name | $mac\n"
+	 	fi
+	done < <($backend devices) 
+}
+
+# $1-text; $2-var name
+dmenu_notify() {
+	: | dmenu -p "$1"
+}
+
+print_paired_devices() {
+	while read -r _ mac name; do
+		printf '%-40s%s\n' "$name" "$mac"
+	done < <(get_already_paired_devices)
+}
+
 connect_device() {
 	$backend connect $2 && (
 	echo $2 '(connected)';
@@ -25,20 +57,106 @@ connect_device() {
 	echo $connected_device;
 }
 
+# $1-command; $2-mac; $3-name
+btctl_command() {
+	local status
+	status="$($backend $1 $2)"
+	printf "$status\n"
+	if [[ $(echo "$status" | grep -i "successful\|succeeded\|removed") ]]; then
+		dmenu_notify "$3: Successful operation '$1' (press enter)"
+	elif [[ $(echo "$status" | grep -i "failed") ]]; then
+		dmenu_notify "$3: Failed operation '$1' (press enter)"
+	fi
+}
 
 disconnect_all_devices() {
 	$($backend disconnect);
 }
 
-scan_for_devices() {
-	echo 'Scan for devices';
+create_options() {
+	local device_info
+
+	if [[ $($backend info $mac | grep "$1") ]]; then
+		submenu_options+="$2 "
+	else
+		submenu_options+="$3 "
+	fi
+}
+
+open_device_submenu() {
+	local submenu_options
+	local name
+	local mac
+	local option
+	submenu_options=""
+	name=$(echo "$1" | grep -oP ".*[^\s](?=(.*([A-Fa-f0-9]{2}\:?){6}))")
+	mac=$(echo "$1" | grep -oP "([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})")
+
+	create_options "Connected: yes" "disconnect" "connect" 
+	create_options "Trusted: yes" "untrust" "trust"
+	create_options "Blocked: yes" "unblock" "block"
+	create_options "Paired: yes" "remove" "pair"
+
+	read -r connect trust block pair < <(echo "$submenu_options")
+	option=$(printf "%s\n" $connect $trust $block $pair | dmenu -p "$name")
+	[[ $option ]] || exit 1
+
+	btctl_command $option $mac "$name"
 }
 
 get_main_menu() {
-	scan_for_devices;
-	get_already_paired_devices;
+	echo -e "Show connected devices\nShow paired devices\nScan for devices"
 }
 
-#connect_device $(get_already_paired_devices | dmenu);
-get_main_menu | dmenu;
+function finish {
+	if [[ "$previous_menu" == "main" ]]; then
+		open_main_menu
+	fi
+}
+
+trap finish EXIT
+
+open_main_menu() {
+	local submenu
+	local device
+	submenu=$(get_main_menu | dmenu)
+	[[ $submenu ]] || exit 1
+
+	if [[ $submenu == "Show connected connected" ]]; then
+		previous_menu="main"
+		current_menu="main_connected"
+		device=$(print_connected_devices | dmenu -p "Connected devices" $dmenu_list_mode)
+		[[ $device ]] || exit 1
+		open_device_submenu "$device"
+	elif [[ $submenu == "Show paired devices" ]]; then
+		previous_menu="main"
+		current_menu="main_paired"
+		device=$(print_paired_devices | dmenu -p "Paired devices" $dmenu_list_mode)
+		[[ $device ]] || exit 1
+		open_device_submenu "$device"
+	elif [[ $submenu == "Scan for devices" ]]; then
+		previous_menu="main"
+		current_menu="main_scan"
+		$backend scan on > /dev/null &
+
+		while [[ "1" == "1" ]]; do
+			get_unpaired_devices
+			device=$(printf "update\n$unpaired_devices" | dmenu -p "scan" $dmenu_list_mode)
+
+			if [[ -z $device ]]; then
+				pkill -P $$
+				break
+			elif [[ $device == "update" ]]; then
+				continue
+			else 
+				open_device_submenu "$device"
+				pkill -P $$
+				break
+			fi 
+		done
+	fi
+}
+
+is_bluetoothctl_installed_correctly
+open_main_menu
 
