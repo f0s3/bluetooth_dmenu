@@ -98,7 +98,7 @@ open_device_submenu() {
 
 	read -r connect trust block pair < <(echo "$submenu_options")
 	option=$(printf "%s\n" $connect $trust $block $pair | dmenu -p "$name")
-	[[ $option ]] || exit 1
+	[[ $option ]] || finish
 
 	btctl_command $option $mac "$name"
 }
@@ -108,7 +108,7 @@ open_connected_devices_menu() {
 	current_menu="main_connected"
 	echo "Previous menu: $previous_menu, current menu: $current_menu"
 	device=$(print_connected_devices | dmenu -p "Connected devices" $dmenu_list_mode)
-	[[ $device ]] || exit 1
+	[[ $device ]] || finish
 	open_device_submenu "$device" "$current_menu"
 }
 
@@ -117,11 +117,12 @@ open_paired_devices_menu() {
 	current_menu="main_paired"
 	echo "Previous menu: $previous_menu, current menu: $current_menu"
 	device=$(print_paired_devices | dmenu -p "Paired devices" $dmenu_list_mode)
-	[[ $device ]] || exit 1
+	[[ $device ]] || finish
 	open_device_submenu "$device" "$current_menu"
 }
 
 open_scan_devices_menu() {
+	# TODO: fix esc menu returning scan
 	previous_menu="main"
 	current_menu="main_scan"
 
@@ -150,8 +151,10 @@ get_main_menu() {
 }
 
 function finish {
-	# TODO: when we were in the devices submenu and trying to return to the main menu, it stops working
-	# TODO: if we go to paired devices, then to main menu, then to paired devices, it will exit the app as you hit ESC to go back
+	if [[ "$current_menu" == "main" ]]; then
+		exit 1
+	fi
+
 	if [[ "$previous_menu" == "main" ]]; then
 		open_main_menu
 	elif [[ "$previous_menu" == "main_connected" ]]; then
@@ -175,7 +178,6 @@ open_main_menu() {
 	echo "Previous menu: $previous_menu, current menu: $current_menu"
 
 	submenu=$(get_main_menu | dmenu)
-	[[ $submenu ]] || exit 1
 
 	if [[ $submenu == "Show connected devices" ]]; then
 		open_connected_devices_menu
