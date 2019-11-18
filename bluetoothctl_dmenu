@@ -3,6 +3,7 @@ dmenu_list_mode="-l 10"
 backend="bluetoothctl"
 connected_device=""
 unpaired_devices=""
+is_scan_running="false"
 
 #check whether bluetoothctl is installed and is working correctly
 is_bluetoothctl_installed_correctly() {
@@ -129,21 +130,20 @@ open_scan_devices_menu() {
 	echo "Previous menu: $previous_menu, current menu: $current_menu"
 	$backend scan on > /dev/null &
 
-	while [[ "1" == "1" ]]; do
+	while [[ "$is_scan_running" == "true" ]]; do
 		get_unpaired_devices
 		device=$(printf "update\n$unpaired_devices" | dmenu -p "scan" $dmenu_list_mode)
 
 		if [[ -z $device ]]; then
-			pkill -P $$
-			break
+			finish
 		elif [[ $device == "update" ]]; then
 			continue
 		else 
+			is_scan_running="false"
 			open_device_submenu "$device" "$current_menu"
-			pkill -P $$
-			break
-		fi 
+		fi
 	done
+	is_scan_running="false"
 }
 
 get_main_menu() {
@@ -151,6 +151,7 @@ get_main_menu() {
 }
 
 function finish {
+	is_scan_running="false"
 	if [[ "$current_menu" == "main" ]]; then
 		exit 1
 	fi
@@ -184,6 +185,7 @@ open_main_menu() {
 	elif [[ $submenu == "Show paired devices" ]]; then
 		open_paired_devices_menu
 	elif [[ $submenu == "Scan for devices" ]]; then
+		is_scan_running="true"
 		open_scan_devices_menu
 	fi
 }
