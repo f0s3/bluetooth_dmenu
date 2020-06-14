@@ -17,13 +17,15 @@ get_paired_devices() {
         awk '{first = $1; $1 = ""; print $0, first; }' |
         awk '{$NF=""; print $0}' |
         awk '{first=$1; $1= ""; print $0, first;}' |
-        sed -e 's/^[ \t]*//')
+        sed -e 's/^[ \t]*//' |
+        awk '{print $0" (Paired)"}')
     echo $result
 }
 
 # implement devices scan option
-
-# implement actions on all types of menu items
+get_scan_results() {
+    echo "123"
+}
 
 get_main_menu() {
     connected_device=get_connected_device
@@ -33,12 +35,15 @@ get_main_menu() {
 }
 
 selected_item=$(get_main_menu | dmenu -l 10)
+IFS=
 
 if [[ $selected_item == *\(Connected\) ]]; then
-    connected_device_mac=$selected_item | awk '{print $(NF-1)}'
-    $(bluetoothctl disconnect $connected_device_mac > /dev/null)
+    connected_device_mac=$(echo $selected_item | awk '{print $(NF-1)}')
+    connected_execution_result=$(bluetoothctl disconnect $connected_device_mac)
+    $(echo $connected_execution_result | awk '/Successful/' | dmenu -l 1 > /dev/null)
 else
-    paired_device_mac=$(echo $selected_item | awk '{print $NF}')
-    $(bluetoothctl connect $paired_device_mac > /dev/null)
+    paired_device_mac=$(echo $selected_item | awk '{print $(NF-1)}')
+    paired_execution_result=$(bluetoothctl connect $paired_device_mac)
+    $(echo $paired_execution_result | awk '/Failed*|Connection successful/' | dmenu -l 1 > /dev/null)
 fi
 
