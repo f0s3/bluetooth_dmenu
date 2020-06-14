@@ -1,0 +1,44 @@
+#!/bin/bash
+
+get_connected_device() {
+    result=""
+    info=$(bluetoothctl info)
+    if [[ $info != "Missing device address argument" ]]; then
+        result=$(bluetoothctl info |
+            awk '/Device/{print $2} /Name/{print $2}' |
+            awk -v RS=  '{$1=$1}1 {print $2" "$1}')
+        echo "$result (Connected)"
+    fi
+}
+
+get_paired_devices() {
+    IFS=
+    result=$(bluetoothctl paired-devices |
+        awk '{first = $1; $1 = ""; print $0, first; }' |
+        awk '{$NF=""; print $0}' |
+        awk '{first=$1; $1= ""; print $0, first;}' |
+        sed -e 's/^[ \t]*//')
+    echo $result
+}
+
+# implement devices scan option
+
+# implement actions on all types of menu items
+
+get_main_menu() {
+    connected_device=get_connected_device
+
+    get_connected_device
+    get_paired_devices
+}
+
+selected_item=$(get_main_menu | dmenu -l 10)
+
+if [[ $selected_item == *\(Connected\) ]]; then
+    connected_device_mac=$selected_item | awk '{print $(NF-1)}'
+    $(bluetoothctl disconnect $connected_device_mac > /dev/null)
+else
+    paired_device_mac=$(echo $selected_item | awk '{print $NF}')
+    $(bluetoothctl connect $paired_device_mac > /dev/null)
+fi
+
