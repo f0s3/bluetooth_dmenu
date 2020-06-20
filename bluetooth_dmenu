@@ -12,38 +12,43 @@ get_connected_device() {
 }
 
 get_paired_devices() {
+    _connected_device=$(echo $1 | sed 's/(.*)$//')
     IFS=
     result=$(bluetoothctl paired-devices |
-        awk '{first = $1; $1 = ""; print $0, first; }' |
-        awk '{$NF=""; print $0}' |
-        awk '{first=$1; $1= ""; print $0, first;}' |
-        sed -e 's/^[ \t]*//' |
-        awk '{print $0" (Paired)"}')
+        sed -e 's/[^ ]* //' \
+            -e 's/\([^ ]*\) *\(.*\)/\2 \1/' \
+            -e 's/^[ \t]*//' \
+            -e 's/$/ \(Paired\)/g' \
+            -e "/$_connected_device/d")
     echo $result
 }
 
-# implement devices scan option
-get_scan_results() {
-    echo "123"
+get_scanned_devices() {
+    echo "Devices scan feature is not implemented yet..."
 }
 
 get_main_menu() {
-    connected_device=get_connected_device
-
     get_connected_device
-    get_paired_devices
+    connected_device=get_connected_device
+    get_paired_devices $connected_device
+    get_scanned_devices
 }
 
 selected_item=$(get_main_menu | dmenu -l 10)
 IFS=
 
+if [[ $selected_item == "" ]]; then
+    exit
+fi
+
+current_device_mac=$(echo $selected_item | awk '{print $(NF-1)}')
 if [[ $selected_item == *\(Connected\) ]]; then
-    connected_device_mac=$(echo $selected_item | awk '{print $(NF-1)}')
-    connected_execution_result=$(bluetoothctl disconnect $connected_device_mac)
-    $(echo $connected_execution_result | awk '/Successful/' | dmenu -l 1 > /dev/null)
+    connected_execution_result=$(bluetoothctl disconnect $current_device_mac)
+    $(echo $connected_execution_result | awk '/Successful/' |
+        dmenu -l 1 > /dev/null)
 else
-    paired_device_mac=$(echo $selected_item | awk '{print $(NF-1)}')
-    paired_execution_result=$(bluetoothctl connect $paired_device_mac)
-    $(echo $paired_execution_result | awk '/Failed*|Connection successful/' | dmenu -l 1 > /dev/null)
+    paired_execution_result=$(bluetoothctl connect $current_device_mac)
+    $(echo $paired_execution_result | awk '/Failed*|Connection su*/' |
+        dmenu -l 1 > /dev/null)
 fi
 
